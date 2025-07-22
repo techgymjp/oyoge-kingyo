@@ -415,7 +415,7 @@
             
             // 背景要素の生成
             generateSeaweed();
-            generateInitialCoins(); // ゲーム開始時に10個のコインを配置
+            generateInitialCoins(); // ゲーム開始時に8〜10個のコインを配置
             generateCoin(); // 継続的なコイン生成開始
             
             gameLoop();
@@ -434,8 +434,9 @@
         }
         
         function generateCoin() {
-            // 時間経過によってコインの最大数を決定（10個からスタート、30秒ごとに1個増加）
-            const maxCoins = Math.min(10 + Math.floor(timer / 30), 25); // 最大25個まで
+            // 時間経過によってコインの最大数を決定（スマホでは少し減らす）
+            const baseMaxCoins = window.innerWidth <= 480 ? 8 : 10;
+            const maxCoins = Math.min(baseMaxCoins + Math.floor(timer / 30), window.innerWidth <= 480 ? 20 : 25);
             
             if (coins.length < maxCoins) {
                 const coin = document.createElement('div');
@@ -443,26 +444,31 @@
                 coin.textContent = '¥';
                 
                 const gameArea = getGameArea();
-                coin.style.left = (30 + Math.random() * (gameArea.width - 60)) + 'px';
+                const margin = window.innerWidth <= 480 ? 20 : 30;
+                coin.style.left = (margin + Math.random() * (gameArea.width - margin * 2)) + 'px';
                 coin.style.top = (80 + Math.random() * (gameArea.height - 200)) + 'px';
                 coin.style.animationDelay = Math.random() * 2 + 's';
                 document.getElementById('gameContainer').appendChild(coin);
                 coins.push(coin);
             }
             
-            // 時間経過によって生成間隔を短くする（4秒から1.5秒まで）
-            const spawnInterval = Math.max(1500, 4000 - (timer * 20));
+            // 時間経過によって生成間隔を短くする（スマホでは少し長めに）
+            const baseInterval = window.innerWidth <= 480 ? 5000 : 4000;
+            const spawnInterval = Math.max(1500, baseInterval - (timer * 20));
             setTimeout(generateCoin, spawnInterval + Math.random() * 1000);
         }
         
         function generateInitialCoins() {
-            // ゲーム開始時に10個のコインを配置
+            // ゲーム開始時のコイン配置（スマホでは少し少なめ）
+            const initialCoinCount = window.innerWidth <= 480 ? 8 : 10;
             const gameArea = getGameArea();
-            for (let i = 0; i < 10; i++) {
+            const margin = window.innerWidth <= 480 ? 20 : 30;
+            
+            for (let i = 0; i < initialCoinCount; i++) {
                 const coin = document.createElement('div');
                 coin.className = 'coin';
                 coin.textContent = '¥';
-                coin.style.left = (30 + Math.random() * (gameArea.width - 60)) + 'px';
+                coin.style.left = (margin + Math.random() * (gameArea.width - margin * 2)) + 'px';
                 coin.style.top = (80 + Math.random() * (gameArea.height - 200)) + 'px';
                 coin.style.animationDelay = Math.random() * 2 + 's';
                 document.getElementById('gameContainer').appendChild(coin);
@@ -534,36 +540,38 @@
             velocityY *= 0.95; // 空気抵抗
             goldfishY += velocityY;
             
-            // 横方向の移動（自動）- より大きな範囲で移動、左右のバランス改善
-            velocityX += (Math.random() - 0.5) * 0.3;
-            velocityX += horizontalDirection * 0.12;
-            velocityX *= 0.98;
+            // 横方向の移動（自動）- スマホでも十分な移動範囲を確保
+            velocityX += (Math.random() - 0.5) * 0.4;
+            velocityX += horizontalDirection * 0.15;
+            velocityX *= 0.97;
             
-            // 横方向の境界で反転（マージンを小さくして移動範囲を広げる）
-            const horizontalMargin = 50;
+            // 横方向の境界で反転（マージンを調整してスマホでも端まで移動）
+            const horizontalMargin = window.innerWidth <= 480 ? 20 : 30;
             if (goldfishX < horizontalMargin + goldfishSize.width / 2) {
                 horizontalDirection = 1;
-                velocityX = Math.abs(velocityX) + 0.5; // 左端からより強く戻る
+                velocityX = Math.abs(velocityX) + 0.8; // より強く戻る
             } else if (goldfishX > gameArea.width - horizontalMargin - goldfishSize.width / 2) {
                 horizontalDirection = -1;
-                velocityX = -Math.abs(velocityX) - 0.3; // 右端からも戻るが左ほど強くない
+                velocityX = -Math.abs(velocityX) - 0.8; // 右端からも強く戻る
             }
             
-            // 中央付近で方向転換の可能性を追加
-            if (Math.random() < 0.002) {
+            // 中央付近で方向転換の可能性を追加（頻度を上げる）
+            if (Math.random() < 0.005) {
                 horizontalDirection *= -1;
             }
             
             goldfishX += velocityX;
             
-            // 境界チェック
+            // 境界チェック（より狭いマージンで制限）
             if (goldfishY > gameArea.height - goldfishSize.height) {
                 gameOver();
                 return;
             }
             if (goldfishY < 0) goldfishY = 0;
-            if (goldfishX < 50 + goldfishSize.width / 2) goldfishX = 50 + goldfishSize.width / 2;
-            if (goldfishX > gameArea.width - 50 - goldfishSize.width / 2) goldfishX = gameArea.width - 50 - goldfishSize.width / 2;
+            const minX = horizontalMargin + goldfishSize.width / 2;
+            const maxX = gameArea.width - horizontalMargin - goldfishSize.width / 2;
+            if (goldfishX < minX) goldfishX = minX;
+            if (goldfishX > maxX) goldfishX = maxX;
             
             // 金魚の位置更新（中央を基準に配置）
             goldfish.style.left = (goldfishX - goldfishSize.width / 2) + 'px';
@@ -581,8 +589,8 @@
             
             goldfish.style.transform = `scaleX(${scaleX}) rotate(${rotation}deg)`;
             
-            // 金魚の当たり判定エリア（中央を基準とした正確な計算）
-            const hitboxMargin = 30;
+            // 金魚の当たり判定エリア（スマホでも取りやすくなるよう調整）
+            const hitboxMargin = window.innerWidth <= 480 ? 15 : 25;
             const goldfishLeft = goldfishX - goldfishSize.width / 2 + hitboxMargin;
             const goldfishRight = goldfishX + goldfishSize.width / 2 - hitboxMargin;
             const goldfishTop = goldfishY + hitboxMargin;
@@ -651,15 +659,18 @@
         window.addEventListener('resize', () => {
             const gameArea = getGameArea();
             const goldfishSize = getGoldfishSize();
+            const margin = window.innerWidth <= 480 ? 20 : 30;
             
             if (goldfishY > gameArea.height - goldfishSize.height) {
                 goldfishY = gameArea.height - goldfishSize.height;
             }
-            if (goldfishX > gameArea.width - 50) {
-                goldfishX = gameArea.width - 50;
+            const minX = margin + goldfishSize.width / 2;
+            const maxX = gameArea.width - margin - goldfishSize.width / 2;
+            if (goldfishX > maxX) {
+                goldfishX = maxX;
             }
-            if (goldfishX < 50) {
-                goldfishX = 50;
+            if (goldfishX < minX) {
+                goldfishX = minX;
             }
         });
     </script>
