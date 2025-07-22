@@ -399,7 +399,8 @@
             
             // 背景要素の生成
             generateSeaweed();
-            generateCoin();
+            generateInitialCoins(); // ゲーム開始時に10個のコインを配置
+            generateCoin(); // 継続的なコイン生成開始
             
             gameLoop();
         }
@@ -416,7 +417,10 @@
         }
         
         function generateCoin() {
-            if (coins.length < 2) {
+            // 時間経過によってコインの最大数を決定（10個からスタート、30秒ごとに1個増加）
+            const maxCoins = Math.min(10 + Math.floor(timer / 30), 25); // 最大25個まで
+            
+            if (coins.length < maxCoins) {
                 const coin = document.createElement('div');
                 coin.className = 'coin';
                 coin.textContent = '¥';
@@ -427,7 +431,23 @@
                 coins.push(coin);
             }
             
-            setTimeout(generateCoin, 4000 + Math.random() * 3000);
+            // 時間経過によって生成間隔を短くする（4秒から1.5秒まで）
+            const spawnInterval = Math.max(1500, 4000 - (timer * 20));
+            setTimeout(generateCoin, spawnInterval + Math.random() * 1000);
+        }
+        
+        function generateInitialCoins() {
+            // ゲーム開始時に10個のコインを配置
+            for (let i = 0; i < 10; i++) {
+                const coin = document.createElement('div');
+                coin.className = 'coin';
+                coin.textContent = '¥';
+                coin.style.left = (50 + Math.random() * (window.innerWidth - 100)) + 'px';
+                coin.style.top = (80 + Math.random() * (window.innerHeight - 200)) + 'px';
+                coin.style.animationDelay = Math.random() * 2 + 's';
+                document.getElementById('gameContainer').appendChild(coin);
+                coins.push(coin);
+            }
         }
         
         function createBubbles(x, y) {
@@ -479,10 +499,10 @@
             // 縦方向の物理演算
             if (micLevel > 0.1) {
                 velocityY -= 0.6 * micLevel;
-                // 泡エフェクト
+                // 泡エフェクト（金魚の中央位置を正確に計算：X軸-150、Y軸+100修正）
                 if (Math.random() < micLevel * 1.5) {
-                    // 泡のX座標を-128に調整
-                    createBubbles(goldfishX - 158, goldfishY + 110);
+                    const goldfishCenterX = goldfishX - 150; // X軸-150修正
+                    createBubbles(goldfishCenterX, goldfishY + 100); // Y軸+100修正
                     sounds.bubble();
                 }
             } else {
@@ -517,7 +537,7 @@
             if (goldfishX < 150) goldfishX = 150;
             if (goldfishX > window.innerWidth - 150) goldfishX = window.innerWidth - 150;
             
-            // 金魚の位置更新
+            // 金魚の位置更新（goldfishXから150を引いた位置が実際の表示位置）
             goldfish.style.left = (goldfishX - 150) + 'px';
             goldfish.style.top = goldfishY + 'px';
             
@@ -533,25 +553,36 @@
             
             goldfish.style.transform = `translateX(-50%) scaleX(${scaleX}) rotate(${rotation}deg)`;
             
-            // 金魚の中央座標を計算
-            const goldfishCenterX = goldfishX;
-            const goldfishCenterY = goldfishY + 110;
+            // 金魚の当たり判定エリア（実際の表示位置に合わせて修正）
+            const hitboxMargin = 30;
+            const goldfishLeft = (goldfishX) - 150 + hitboxMargin; // X軸-150修正
+            const goldfishRight = (goldfishX) + 150 - hitboxMargin; // X軸-150修正
+            const goldfishTop = goldfishY - 100 + hitboxMargin; // Y軸+100修正
+            const goldfishBottom = goldfishY + 100 - hitboxMargin; // Y軸+100修正
             
-            // コイン当たり判定
+            // コイン当たり判定（矩形同士の重なり判定）
             coins.forEach((coin, index) => {
-                const coinRect = coin.getBoundingClientRect();
-                const coinCenterX = coinRect.left + coinRect.width / 2;
-                const coinCenterY = coinRect.top + coinRect.height / 2;
+                const coinLeft = parseFloat(coin.style.left);
+                const coinTop = parseFloat(coin.style.top);
+                const coinRight = coinLeft + 25; // コインの幅
+                const coinBottom = coinTop + 25; // コインの高さ
                 
-                const distance = Math.sqrt(
-                    Math.pow(goldfishCenterX - coinCenterX, 2) + 
-                    Math.pow(goldfishCenterY - coinCenterY, 2)
+                // 矩形の重なり判定
+                const isColliding = (
+                    goldfishLeft < coinRight &&
+                    goldfishRight > coinLeft &&
+                    goldfishTop < coinBottom &&
+                    goldfishBottom > coinTop
                 );
                 
-                if (distance < 80) {
+                if (isColliding) {
                     score++;
                     // コイン取得効果音を再生
                     playSound(coinSound, sounds.coin);
+                    
+                    // アニメーション用の金魚中心座標（X軸-150、Y軸+100修正）
+                    const goldfishCenterX = goldfishX - 150; // X軸-150修正
+                    const goldfishCenterY = goldfishY + 100; // Y軸+100修正
                     animateCoinCollection(coin, goldfishCenterX, goldfishCenterY);
                     coins.splice(index, 1);
                 }
