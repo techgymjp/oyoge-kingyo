@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>およげ金魚くん</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, #87CEEB 0%, #4682B4 50%, #191970 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #goldfish {
+            position: absolute;
+            width: 80px;
+            height: 60px;
+            left: 50px;
+            transition: transform 0.1s ease-out;
+            z-index: 10;
+        }
+        
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: bubble-float 1s ease-out forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes bubble-float {
+            0% {
+                opacity: 0.8;
+                transform: scale(0.5);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5) translateY(-100px);
+            }
+        }
+        
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            border: 3px solid #FF8C00;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            color: #8B4513;
+            animation: coin-spin 2s linear infinite, coin-float 3s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        @keyframes coin-spin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+        
+        @keyframes coin-float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        
+        #startScreen, #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            z-index: 200;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        #micLevel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        #micBar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(0deg, #00FF00, #FFFF00, #FF0000);
+            border-radius: 10px;
+            transition: height 0.1s ease-out;
+        }
+        
+        .seaweed {
+            position: absolute;
+            bottom: 0;
+            width: 20px;
+            background: linear-gradient(0deg, #228B22, #32CD32);
+            border-radius: 10px 10px 0 0;
+            animation: seaweed-sway 3s ease-in-out infinite;
+        }
+        
+        @keyframes seaweed-sway {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(5deg); }
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            font-size: 16px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="goldfish">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA4MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZWxsaXBzZSBjeD0iNDAiIGN5PSIzMCIgcng9IjMwIiByeT0iMjAiIGZpbGw9IiNGRjY5MDAiLz4KICA8ZWxsaXBzZSBjeD0iNzAiIGN5PSIzMCIgcng9IjEwIiByeT0iMTUiIGZpbGw9IiNGRjg1MDAiLz4KICA8ZWxsaXBzZSBjeD0iNjUiIGN5PSIyMCIgcng9IjgiIHJ5PSIxMCIgZmlsbD0iI0ZCQTQ0MSIvPgogIDxlbGxpcHNlIGN4PSI2NSIgY3k9IjQwIiByeD0iOCIgcnk9IjEwIiBmaWxsPSIjRkJBNDQxIi8+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIyNSIgcj0iMyIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4K" alt="金魚" style="width: 100%; height: 100%;">
+        </div>
+        
+        <div id="ui">
+            <div>時間: <span id="timer">0</span>秒</div>
+            <div>スコア: <span id="score">0</span>点</div>
+        </div>
+        
+        <div id="micLevel">
+            <div id="micBar" style="height: 0%;"></div>
+        </div>
+        
+        <div id="instructions">
+            🎤 大きな声で金魚を浮上させよう！静かにすると沈むよ
+        </div>
+        
+        <div id="startScreen">
+            <h1 style="color: #FFD700; margin-bottom: 30px;">🐠 およげ金魚くん 🐠</h1>
+            <p>マイクに向かって声を出して金魚を操作しよう！</p>
+            <p>大きな声 = 上昇、静か = 下降</p>
+            <p>コインを集めてハイスコアを目指そう！</p>
+            <button id="startBtn">ゲーム開始</button>
+        </div>
+        
+        <div id="gameOverScreen" style="display: none;">
+            <h1 style="color: #FF6B6B;">ゲームオーバー！</h1>
+            <p>泳いだ時間: <span id="finalTime">0</span>秒</p>
+            <p>最終スコア: <span id="finalScore">0</span>点</p>
+            <button id="restartBtn">もう一度挑戦</button>
+        </div>
+    </div>
+
+    <script>
+        let gameState = 'start';
+        let goldfish = document.getElementById('goldfish');
+        let timer = 0;
+        let score = 0;
+        let goldfishY = window.innerHeight / 2;
+        let velocity = 0;
+        let coins = [];
+        let audioContext;
+        let microphone;
+        let analyser;
+        let dataArray;
+        let animationId;
+        let gameStartTime;
+        
+        // 音声要素の作成（効果音用）
+        const sounds = {
+            coin: createBeep(800, 0.1),
+            bubble: createBeep(400, 0.2),
+            gameOver: createBeep(200, 0.5)
+        };
+        
+        function createBeep(frequency, duration) {
+            return function() {
+                if (!audioContext) return;
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            };
+        }
+        
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    analyser = audioContext.createAnalyser();
+                    microphone.connect(analyser);
+                    
+                    analyser.fftSize = 256;
+                    const bufferLength = analyser.frequencyBinCount;
+                    dataArray = new Uint8Array(bufferLength);
+                    
+                    startGame();
+                })
+                .catch(err => {
+                    alert('マイクのアクセスが必要です。ブラウザの設定を確認してください。');
+                });
+        }
+        
+        function startGame() {
+            gameState = 'playing';
+            timer = 0;
+            score = 0;
+            goldfishY = window.innerHeight / 2;
+            velocity = 0;
+            coins = [];
+            gameStartTime = Date.now();
+            
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'none';
+            
+            // 背景要素の生成
+            generateSeaweed();
+            generateCoin();
+            
+            gameLoop();
+        }
+        
+        function generateSeaweed() {
+            for (let i = 0; i < 10; i++) {
+                const seaweed = document.createElement('div');
+                seaweed.className = 'seaweed';
+                seaweed.style.left = Math.random() * window.innerWidth + 'px';
+                seaweed.style.height = (50 + Math.random() * 100) + 'px';
+                seaweed.style.animationDelay = Math.random() * 3 + 's';
+                document.getElementById('gameContainer').appendChild(seaweed);
+            }
+        }
+        
+        function generateCoin() {
+            if (coins.length < 3) {
+                const coin = document.createElement('div');
+                coin.className = 'coin';
+                coin.textContent = '¥';
+                coin.style.left = (200 + Math.random() * (window.innerWidth - 300)) + 'px';
+                coin.style.top = (50 + Math.random() * (window.innerHeight - 150)) + 'px';
+                coin.style.animationDelay = Math.random() * 2 + 's';
+                document.getElementById('gameContainer').appendChild(coin);
+                coins.push(coin);
+            }
+            
+            setTimeout(generateCoin, 3000 + Math.random() * 2000);
+        }
+        
+        function createBubbles(x, y) {
+            for (let i = 0; i < 3; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.style.left = (x + Math.random() * 40 - 20) + 'px';
+                bubble.style.top = y + 'px';
+                bubble.style.width = bubble.style.height = (10 + Math.random() * 20) + 'px';
+                document.getElementById('gameContainer').appendChild(bubble);
+                
+                setTimeout(() => bubble.remove(), 1000);
+            }
+        }
+        
+        function getMicLevel() {
+            if (!analyser || !dataArray) return 0;
+            
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            return sum / dataArray.length / 255;
+        }
+        
+        function gameLoop() {
+            if (gameState !== 'playing') return;
+            
+            // マイクレベル取得
+            const micLevel = getMicLevel();
+            document.getElementById('micBar').style.height = (micLevel * 100) + '%';
+            
+            // 物理演算
+            if (micLevel > 0.1) {
+                velocity -= 0.8 * micLevel;
+                // 泡エフェクト
+                if (Math.random() < micLevel * 2) {
+                    createBubbles(
+                        parseInt(goldfish.style.left) + 40,
+                        goldfishY + 30
+                    );
+                    sounds.bubble();
+                }
+            } else {
+                velocity += 0.4; // 重力
+            }
+            
+            velocity *= 0.95; // 空気抵抗
+            goldfishY += velocity;
+            
+            // 境界チェック
+            if (goldfishY > window.innerHeight - 60) {
+                gameOver();
+                return;
+            }
+            if (goldfishY < 0) goldfishY = 0;
+            
+            // 金魚の位置更新
+            goldfish.style.top = goldfishY + 'px';
+            
+            // 金魚の向きを速度に応じて変更
+            if (velocity < 0) {
+                goldfish.style.transform = 'scaleY(-1) rotate(-15deg)';
+            } else {
+                goldfish.style.transform = 'scaleY(1) rotate(15deg)';
+            }
+            
+            // コイン当たり判定
+            const goldfishRect = goldfish.getBoundingClientRect();
+            coins.forEach((coin, index) => {
+                const coinRect = coin.getBoundingClientRect();
+                if (goldfishRect.left < coinRect.right &&
+                    goldfishRect.right > coinRect.left &&
+                    goldfishRect.top < coinRect.bottom &&
+                    goldfishRect.bottom > coinRect.top) {
+                    
+                    score++;
+                    sounds.coin();
+                    coin.remove();
+                    coins.splice(index, 1);
+                }
+            });
+            
+            // タイマー更新
+            timer = Math.floor((Date.now() - gameStartTime) / 1000);
+            document.getElementById('timer').textContent = timer;
+            document.getElementById('score').textContent = score;
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        function gameOver() {
+            gameState = 'gameOver';
+            sounds.gameOver();
+            cancelAnimationFrame(animationId);
+            
+            document.getElementById('finalTime').textContent = timer;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+        
+        // イベントリスナー
+        document.getElementById('startBtn').addEventListener('click', initAudio);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        
+        // ページ読み込み時の初期化
+        window.addEventListener('load', () => {
+            goldfish.style.top = (window.innerHeight / 2) + 'px';
+        });
+        
+        // ウィンドウリサイズ対応
+        window.addEventListener('resize', () => {
+            if (goldfishY > window.innerHeight - 60) {
+                goldfishY = window.innerHeight - 60;
+            }
+        });
+    </script>
+</body>
+</html>
