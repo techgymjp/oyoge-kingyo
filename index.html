@@ -24,8 +24,8 @@
         
         #goldfish {
             position: absolute;
-            width: 60px;
-            height: 45px;
+            width: 300px;
+            height: 225px;
             left: 50%;
             top: 50%;
             transform: translateX(-50%);
@@ -218,8 +218,8 @@
             }
             
             #goldfish {
-                width: 50px;
-                height: 38px;
+                width: 250px;
+                height: 188px;
             }
             
             .coin {
@@ -244,6 +244,17 @@
     </style>
 </head>
 <body>
+    <!-- 効果音用のaudio要素 -->
+    <audio id="startSound" preload="auto">
+        <source src="start.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="coinSound" preload="auto">
+        <source src="coin.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="gameOverSound" preload="auto">
+        <source src="fall.mp3" type="audio/mpeg">
+    </audio>
+
     <div id="gameContainer">
         <div id="goldfish">
             <img src="kingyo.gif" alt="金魚">
@@ -297,7 +308,17 @@
         let animationId;
         let gameStartTime;
         
-        // 音声要素の作成（効果音用）
+        // 効果音要素の取得
+        const startSound = document.getElementById('startSound');
+        const coinSound = document.getElementById('coinSound');
+        const gameOverSound = document.getElementById('gameOverSound');
+        
+        // 効果音の音量設定
+        startSound.volume = 0.7;
+        coinSound.volume = 0.5;
+        gameOverSound.volume = 0.6;
+        
+        // 音声要素の作成（バックアップ用ビープ音）
         const sounds = {
             coin: createBeep(800, 0.1),
             bubble: createBeep(400, 0.2),
@@ -322,7 +343,23 @@
             };
         }
         
+        function playSound(soundElement, fallbackFunction) {
+            try {
+                soundElement.currentTime = 0;
+                soundElement.play().catch(() => {
+                    // 音声ファイルが利用できない場合はビープ音を再生
+                    if (fallbackFunction) fallbackFunction();
+                });
+            } catch (error) {
+                // 音声ファイルが利用できない場合はビープ音を再生
+                if (fallbackFunction) fallbackFunction();
+            }
+        }
+        
         function initAudio() {
+            // スタート効果音を再生
+            playSound(startSound);
+            
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
             navigator.mediaDevices.getUserMedia({ audio: true })
@@ -444,7 +481,7 @@
                 velocityY -= 0.6 * micLevel;
                 // 泡エフェクト
                 if (Math.random() < micLevel * 1.5) {
-                    createBubbles(goldfishX, goldfishY + 20);
+                    createBubbles(goldfishX, goldfishY + 100);
                     sounds.bubble();
                 }
             } else {
@@ -460,10 +497,10 @@
             velocityX *= 0.98;
             
             // 横方向の境界で反転
-            if (goldfishX < 60) {
+            if (goldfishX < 150) {
                 horizontalDirection = 1;
                 velocityX = Math.abs(velocityX);
-            } else if (goldfishX > window.innerWidth - 60) {
+            } else if (goldfishX > window.innerWidth - 150) {
                 horizontalDirection = -1;
                 velocityX = -Math.abs(velocityX);
             }
@@ -471,16 +508,16 @@
             goldfishX += velocityX;
             
             // 境界チェック
-            if (goldfishY > window.innerHeight - 50) {
+            if (goldfishY > window.innerHeight - 225) {
                 gameOver();
                 return;
             }
             if (goldfishY < 0) goldfishY = 0;
-            if (goldfishX < 30) goldfishX = 30;
-            if (goldfishX > window.innerWidth - 30) goldfishX = window.innerWidth - 30;
+            if (goldfishX < 150) goldfishX = 150;
+            if (goldfishX > window.innerWidth - 150) goldfishX = window.innerWidth - 150;
             
             // 金魚の位置更新
-            goldfish.style.left = (goldfishX - 30) + 'px';
+            goldfish.style.left = (goldfishX - 150) + 'px';
             goldfish.style.top = goldfishY + 'px';
             
             // 金魚の向きを速度に応じて変更
@@ -497,7 +534,7 @@
             
             // 金魚の中央座標を計算
             const goldfishCenterX = goldfishX;
-            const goldfishCenterY = goldfishY + 22;
+            const goldfishCenterY = goldfishY + 110;
             
             // コイン当たり判定
             coins.forEach((coin, index) => {
@@ -510,9 +547,10 @@
                     Math.pow(goldfishCenterY - coinCenterY, 2)
                 );
                 
-                if (distance < 40) {
+                if (distance < 80) {
                     score++;
-                    sounds.coin();
+                    // コイン取得効果音を再生
+                    playSound(coinSound, sounds.coin);
                     animateCoinCollection(coin, goldfishCenterX, goldfishCenterY);
                     coins.splice(index, 1);
                 }
@@ -528,7 +566,8 @@
         
         function gameOver() {
             gameState = 'gameOver';
-            sounds.gameOver();
+            // ゲームオーバー効果音を再生
+            playSound(gameOverSound, sounds.gameOver);
             cancelAnimationFrame(animationId);
             
             document.getElementById('finalTime').textContent = timer;
@@ -542,20 +581,20 @@
         
         // ページ読み込み時の初期化
         window.addEventListener('load', () => {
-            goldfish.style.left = (window.innerWidth / 2 - 30) + 'px';
+            goldfish.style.left = (window.innerWidth / 2 - 150) + 'px';
             goldfish.style.top = (window.innerHeight / 2) + 'px';
         });
         
         // ウィンドウリサイズ対応
         window.addEventListener('resize', () => {
-            if (goldfishY > window.innerHeight - 50) {
-                goldfishY = window.innerHeight - 50;
+            if (goldfishY > window.innerHeight - 225) {
+                goldfishY = window.innerHeight - 225;
             }
-            if (goldfishX > window.innerWidth - 30) {
-                goldfishX = window.innerWidth - 30;
+            if (goldfishX > window.innerWidth - 150) {
+                goldfishX = window.innerWidth - 150;
             }
-            if (goldfishX < 30) {
-                goldfishX = 30;
+            if (goldfishX < 150) {
+                goldfishX = 150;
             }
         });
     </script>
