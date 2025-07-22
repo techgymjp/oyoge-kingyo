@@ -26,10 +26,8 @@
             position: absolute;
             width: 300px;
             height: 225px;
-            left: 50%;
-            top: 50%;
-            transform: translateX(-50%);
-            transition: transform 0.1s ease-out;
+            transform-origin: center center;
+            transition: none;
             z-index: 10;
         }
         
@@ -295,8 +293,8 @@
         let goldfish = document.getElementById('goldfish');
         let timer = 0;
         let score = 0;
-        let goldfishY = window.innerHeight / 2;
-        let goldfishX = window.innerWidth / 2;
+        let goldfishY = 0;
+        let goldfishX = 0;
         let velocityY = 0;
         let velocityX = 0;
         let horizontalDirection = 1;
@@ -307,6 +305,22 @@
         let dataArray;
         let animationId;
         let gameStartTime;
+        
+        // ゲーム領域のサイズを取得する関数
+        function getGameArea() {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        }
+        
+        // 金魚のサイズを取得する関数（レスポンシブ対応）
+        function getGoldfishSize() {
+            if (window.innerWidth <= 480) {
+                return { width: 250, height: 188 };
+            }
+            return { width: 300, height: 225 };
+        }
         
         // 効果音要素の取得
         const startSound = document.getElementById('startSound');
@@ -383,8 +397,10 @@
             gameState = 'playing';
             timer = 0;
             score = 0;
+            
+            const gameArea = getGameArea();
             goldfishY = 0; // 一番上からスタート
-            goldfishX = window.innerWidth / 2;
+            goldfishX = gameArea.width / 2; // 中央からスタート
             velocityY = 0;
             velocityX = 0;
             horizontalDirection = 1;
@@ -406,10 +422,11 @@
         }
         
         function generateSeaweed() {
+            const gameArea = getGameArea();
             for (let i = 0; i < 8; i++) {
                 const seaweed = document.createElement('div');
                 seaweed.className = 'seaweed';
-                seaweed.style.left = Math.random() * window.innerWidth + 'px';
+                seaweed.style.left = Math.random() * gameArea.width + 'px';
                 seaweed.style.height = (40 + Math.random() * 80) + 'px';
                 seaweed.style.animationDelay = Math.random() * 3 + 's';
                 document.getElementById('gameContainer').appendChild(seaweed);
@@ -424,8 +441,10 @@
                 const coin = document.createElement('div');
                 coin.className = 'coin';
                 coin.textContent = '¥';
-                coin.style.left = (50 + Math.random() * (window.innerWidth - 100)) + 'px';
-                coin.style.top = (80 + Math.random() * (window.innerHeight - 200)) + 'px';
+                
+                const gameArea = getGameArea();
+                coin.style.left = (30 + Math.random() * (gameArea.width - 60)) + 'px';
+                coin.style.top = (80 + Math.random() * (gameArea.height - 200)) + 'px';
                 coin.style.animationDelay = Math.random() * 2 + 's';
                 document.getElementById('gameContainer').appendChild(coin);
                 coins.push(coin);
@@ -438,12 +457,13 @@
         
         function generateInitialCoins() {
             // ゲーム開始時に10個のコインを配置
+            const gameArea = getGameArea();
             for (let i = 0; i < 10; i++) {
                 const coin = document.createElement('div');
                 coin.className = 'coin';
                 coin.textContent = '¥';
-                coin.style.left = (50 + Math.random() * (window.innerWidth - 100)) + 'px';
-                coin.style.top = (80 + Math.random() * (window.innerHeight - 200)) + 'px';
+                coin.style.left = (30 + Math.random() * (gameArea.width - 60)) + 'px';
+                coin.style.top = (80 + Math.random() * (gameArea.height - 200)) + 'px';
                 coin.style.animationDelay = Math.random() * 2 + 's';
                 document.getElementById('gameContainer').appendChild(coin);
                 coins.push(coin);
@@ -492,6 +512,9 @@
         function gameLoop() {
             if (gameState !== 'playing') return;
             
+            const gameArea = getGameArea();
+            const goldfishSize = getGoldfishSize();
+            
             // マイクレベル取得
             const micLevel = getMicLevel();
             document.getElementById('micBar').style.height = (micLevel * 100) + '%';
@@ -499,10 +522,9 @@
             // 縦方向の物理演算
             if (micLevel > 0.1) {
                 velocityY -= 0.6 * micLevel;
-                // 泡エフェクト（金魚の中央位置を正確に計算：X軸-150、Y軸+100修正）
+                // 泡エフェクト
                 if (Math.random() < micLevel * 1.5) {
-                    const goldfishCenterX = goldfishX - 150; // X軸-150修正
-                    createBubbles(goldfishCenterX, goldfishY + 100); // Y軸+100修正
+                    createBubbles(goldfishX, goldfishY + goldfishSize.height / 2);
                     sounds.bubble();
                 }
             } else {
@@ -512,33 +534,39 @@
             velocityY *= 0.95; // 空気抵抗
             goldfishY += velocityY;
             
-            // 横方向の移動（自動）
-            velocityX += (Math.random() - 0.5) * 0.2;
-            velocityX += horizontalDirection * 0.1;
+            // 横方向の移動（自動）- より大きな範囲で移動、左右のバランス改善
+            velocityX += (Math.random() - 0.5) * 0.3;
+            velocityX += horizontalDirection * 0.12;
             velocityX *= 0.98;
             
-            // 横方向の境界で反転
-            if (goldfishX < 150) {
+            // 横方向の境界で反転（マージンを小さくして移動範囲を広げる）
+            const horizontalMargin = 50;
+            if (goldfishX < horizontalMargin + goldfishSize.width / 2) {
                 horizontalDirection = 1;
-                velocityX = Math.abs(velocityX);
-            } else if (goldfishX > window.innerWidth - 150) {
+                velocityX = Math.abs(velocityX) + 0.5; // 左端からより強く戻る
+            } else if (goldfishX > gameArea.width - horizontalMargin - goldfishSize.width / 2) {
                 horizontalDirection = -1;
-                velocityX = -Math.abs(velocityX);
+                velocityX = -Math.abs(velocityX) - 0.3; // 右端からも戻るが左ほど強くない
+            }
+            
+            // 中央付近で方向転換の可能性を追加
+            if (Math.random() < 0.002) {
+                horizontalDirection *= -1;
             }
             
             goldfishX += velocityX;
             
             // 境界チェック
-            if (goldfishY > window.innerHeight - 225) {
+            if (goldfishY > gameArea.height - goldfishSize.height) {
                 gameOver();
                 return;
             }
             if (goldfishY < 0) goldfishY = 0;
-            if (goldfishX < 150) goldfishX = 150;
-            if (goldfishX > window.innerWidth - 150) goldfishX = window.innerWidth - 150;
+            if (goldfishX < 50 + goldfishSize.width / 2) goldfishX = 50 + goldfishSize.width / 2;
+            if (goldfishX > gameArea.width - 50 - goldfishSize.width / 2) goldfishX = gameArea.width - 50 - goldfishSize.width / 2;
             
-            // 金魚の位置更新（goldfishXから150を引いた位置が実際の表示位置）
-            goldfish.style.left = (goldfishX - 150) + 'px';
+            // 金魚の位置更新（中央を基準に配置）
+            goldfish.style.left = (goldfishX - goldfishSize.width / 2) + 'px';
             goldfish.style.top = goldfishY + 'px';
             
             // 金魚の向きを速度に応じて変更
@@ -551,14 +579,14 @@
                 rotation = 15;
             }
             
-            goldfish.style.transform = `translateX(-50%) scaleX(${scaleX}) rotate(${rotation}deg)`;
+            goldfish.style.transform = `scaleX(${scaleX}) rotate(${rotation}deg)`;
             
-            // 金魚の当たり判定エリア（実際の表示位置に合わせて修正）
+            // 金魚の当たり判定エリア（中央を基準とした正確な計算）
             const hitboxMargin = 30;
-            const goldfishLeft = (goldfishX) - 150 + hitboxMargin; // X軸-150修正
-            const goldfishRight = (goldfishX) + 150 - hitboxMargin; // X軸-150修正
-            const goldfishTop = goldfishY - 100 + hitboxMargin; // Y軸+100修正
-            const goldfishBottom = goldfishY + 100 - hitboxMargin; // Y軸+100修正
+            const goldfishLeft = goldfishX - goldfishSize.width / 2 + hitboxMargin;
+            const goldfishRight = goldfishX + goldfishSize.width / 2 - hitboxMargin;
+            const goldfishTop = goldfishY + hitboxMargin;
+            const goldfishBottom = goldfishY + goldfishSize.height - hitboxMargin;
             
             // コイン当たり判定（矩形同士の重なり判定）
             coins.forEach((coin, index) => {
@@ -580,9 +608,9 @@
                     // コイン取得効果音を再生
                     playSound(coinSound, sounds.coin);
                     
-                    // アニメーション用の金魚中心座標（X軸-150、Y軸+100修正）
-                    const goldfishCenterX = goldfishX - 150; // X軸-150修正
-                    const goldfishCenterY = goldfishY + 100; // Y軸+100修正
+                    // アニメーション用の金魚中心座標
+                    const goldfishCenterX = goldfishX;
+                    const goldfishCenterY = goldfishY + goldfishSize.height / 2;
                     animateCoinCollection(coin, goldfishCenterX, goldfishCenterY);
                     coins.splice(index, 1);
                 }
@@ -613,20 +641,25 @@
         
         // ページ読み込み時の初期化
         window.addEventListener('load', () => {
-            goldfish.style.left = (window.innerWidth / 2 - 150) + 'px';
-            goldfish.style.top = (window.innerHeight / 2) + 'px';
+            const gameArea = getGameArea();
+            const goldfishSize = getGoldfishSize();
+            goldfish.style.left = (gameArea.width / 2 - goldfishSize.width / 2) + 'px';
+            goldfish.style.top = (gameArea.height / 2) + 'px';
         });
         
         // ウィンドウリサイズ対応
         window.addEventListener('resize', () => {
-            if (goldfishY > window.innerHeight - 225) {
-                goldfishY = window.innerHeight - 225;
+            const gameArea = getGameArea();
+            const goldfishSize = getGoldfishSize();
+            
+            if (goldfishY > gameArea.height - goldfishSize.height) {
+                goldfishY = gameArea.height - goldfishSize.height;
             }
-            if (goldfishX > window.innerWidth - 150) {
-                goldfishX = window.innerWidth - 150;
+            if (goldfishX > gameArea.width - 50) {
+                goldfishX = gameArea.width - 50;
             }
-            if (goldfishX < 150) {
-                goldfishX = 150;
+            if (goldfishX < 50) {
+                goldfishX = 50;
             }
         });
     </script>
