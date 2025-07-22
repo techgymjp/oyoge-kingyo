@@ -481,7 +481,9 @@
                 velocityY -= 0.6 * micLevel;
                 // 泡エフェクト
                 if (Math.random() < micLevel * 1.5) {
-                    createBubbles(goldfishX, goldfishY + 100);
+                    // 金魚の向きに応じて泡の位置を調整
+                    const bubbleOffsetX = velocityX > 0 ? 30 : -30; // 金魚の向きに応じて左右調整
+                    createBubbles(goldfishX + bubbleOffsetX, goldfishY + 60);
                     sounds.bubble();
                 }
             } else {
